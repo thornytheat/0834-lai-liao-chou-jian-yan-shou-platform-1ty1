@@ -10,9 +10,9 @@
 | M2 样本计划核对 | 检查领域约束 | `POST /api/stages/prepare` | `app/modules/prepare.py` | `tests/test_prepare.py` |
 | M3 接收概率复算 | 查看业务计算结果 | `POST /api/stages/calculate` | `app/modules/calculate.py` | `tests/test_calculate.py` |
 | M4 批次放行 | 查看签收判定 | `POST /api/stages/policy` | `app/modules/policy.py` | `tests/test_policy.py` |
-| M5 运行对账 | 对照输入、采信和隔离行 | `POST /api/stages/balance` | `app/modules/reconcile.py` | `tests/test_reconcile.py` |
-| M6 批次复核 | 执行批次并签发或暂缓 | `POST /api/runs、PATCH /api/runs/<id>` | `app/review/service.py` | `tests/test_review.py` |
-| M7 证据交付 | 下载复核清单 | `GET /api/runs/<id>/evidence` | `app/evidence/render.py` | `tests/test_evidence.py` |
+| M5 运行对账 | 对照输入、采信和隔离行，归属放行资格 | `POST /api/stages/balance` | `app/modules/reconcile.py` | `tests/test_reconcile.py` |
+| M6 批次复核 | 执行批次，按批组或整批签发、暂缓 | `POST /api/runs、PATCH /api/runs/<id>、PATCH /api/runs/<id>/cases/<case>` | `app/review/service.py` | `tests/test_review.py` |
+| M7 证据交付 | 下载含各组决定的复核清单 | `GET /api/runs/<id>/evidence` | `app/evidence/render.py` | `tests/test_evidence.py` |
 
 ## 输入陷阱
 
@@ -29,6 +29,10 @@
 | TRAP-16 | 引号未闭合时拒收文件 | `app/intake/reader.py` | `tests/test_intake.py::test_unclosed_quote_invalidates_source` |
 | TRAP-18 | 区分空文件、全空白和仅表头 | `app/intake/reader.py` | `tests/test_intake.py::test_empty_states_have_distinct_causes` |
 | TRAP-26 | 拒绝旧版本复核 | `app/review/store.py` | `tests/test_review.py::test_review_optimistic_lock` |
+| TRAP-27 | 坏行认不出批组时整单待查 | `app/modules/reconcile.py` | `tests/test_reconcile.py::test_unreadable_case_blocks_whole_order` |
+| TRAP-28 | 列数错乱的行不参与批组归属 | `app/modules/reconcile.py` | `tests/test_reconcile.py::test_column_count_row_cannot_be_attributed` |
+| TRAP-29 | 同记录号跨组冲突牵涉组都暂缓 | `app/modules/reconcile.py` | `tests/test_reconcile.py::test_cross_case_conflict_holds_involved_groups` |
+| TRAP-30 | 不同批组并发复核各自生效 | `app/review/store.py` | `tests/test_concurrency.py::test_parallel_case_reviews_both_commit` |
 
 ## 领域反例
 

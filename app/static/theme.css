@@ -54,6 +54,7 @@ body.sampling {margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(
 .sampling #history {list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:var(--gap);margin:0}
 .sampling #history li {display:flex;align-items:center;flex-wrap:wrap}
 .sampling #review {margin-top:14px;max-width:580px}
+.sampling #review select {display:block;width:100%;margin:4px 0 8px}
 .sampling textarea {display:block;width:100%;min-height:54px;cursor:text}
 .sampling .review-actions {display:flex;gap:6px;margin:8px 0}
 .sampling .statusbar {display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;border-top:1px solid var(--line);padding:10px var(--pad);color:var(--muted)}

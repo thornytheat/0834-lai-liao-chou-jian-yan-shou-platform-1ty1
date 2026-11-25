@@ -1,4 +1,4 @@
-import {request} from './client.js';
+import {request, element} from './client.js';
 import {snapshot, history} from './view.js';
 import {visualize} from './plots.js';
 
@@ -8,6 +8,7 @@ const profile = document.querySelector('#profile');
 const status = document.querySelector('#notice');
 const detail = document.querySelector('#review');
 const evidence = document.querySelector('#evidence');
+const scope = document.querySelector('#scope');
 const stages = [...document.querySelectorAll('[data-stage]')];
 let stage = 'balance';
 let report, selected, batch, running = false;
@@ -24,17 +25,50 @@ function announce(text, failure = false) {
   status.dataset.failure = String(failure);
 }
 
+function decisionOf(caseId) {
+  return batch?.decisions?.find(item=>item.case===caseId);
+}
+
+function currentNote() {
+  if (!batch) return '';
+  if (!scope.value) return batch.note || '';
+  return decisionOf(scope.value)?.note || '';
+}
+
+function syncScope() {
+  const current = scope.value;
+  scope.replaceChildren(element('option','整批（全部批组）',{value:''}));
+  for (const row of report.cases || []) {
+    const decision = decisionOf(row.case);
+    scope.append(element('option',`批组 ${row.case}${decision ? ` · ${decision.status}` : ''}`,{value:row.case}));
+  }
+  scope.value = [...scope.options].some(option=>option.value===current) ? current : (selected || '');
+}
+
 function draw() {
   if (!report) return;
-  snapshot(report, selected, stage);
+  snapshot(report, selected, stage, batch?.decisions);
   visualize(report, selected);
   for (const button of stages) button.setAttribute('aria-pressed',String(button.dataset.stage===stage));
   document.querySelector('#panel-title').textContent = stages.find(button => button.dataset.stage===stage)?.textContent || '运行对账';
   detail.hidden = !batch;
   if (batch) {
-    document.querySelector('#run-status').textContent = `${batch.id.slice(0,10)} · ${batch.status} · r${batch.revision}`;
-    detail.querySelector('[value="APPROVED"]').disabled = !report.balance.releasable || batch.status==='APPROVED';
-    detail.querySelector('[value="HELD"]').disabled = batch.status==='APPROVED';
+    const release = report.balance?.release;
+    document.querySelector('#run-status').textContent =
+      `${batch.id.slice(0,10)} · ${batch.status} · r${batch.revision}` + (release?.blocked ? ' · 整单待查' : '');
+    syncScope();
+    const finalized = batch.status==='APPROVED';
+    let approveDisabled = finalized, holdDisabled = finalized;
+    if (scope.value) {
+      const decision = decisionOf(scope.value);
+      approveDisabled = approveDisabled || decision?.status==='APPROVED' || !(release?.cases?.[scope.value]?.releasable ?? false);
+      holdDisabled = holdDisabled || decision?.status==='APPROVED';
+    } else {
+      approveDisabled = approveDisabled || !report.balance?.releasable;
+    }
+    detail.querySelector('[value="APPROVED"]').disabled = approveDisabled;
+    detail.querySelector('[value="HELD"]').disabled = holdDisabled;
+    detail.elements.note.value = currentNote();
     evidence.href = `/api/runs/${batch.id}/evidence`;
   }
 }
@@ -42,7 +76,6 @@ function draw() {
 function show(payload, committed = false) {
   batch = committed ? payload : null;
   report = committed ? payload.report : payload;
-  detail.elements.note.value = batch?.note || '';
   selected = report.cases?.[0]?.case;
   draw();
 }
@@ -86,8 +119,9 @@ profile.addEventListener('change',()=>{file.value=''; filename.textContent=''; p
 file.addEventListener('change',()=>{filename.textContent=file.files[0]?.name || ''; preview(stage);});
 document.querySelector('#rows').addEventListener('click',event=>{
   const button = event.target.closest('[data-case]');
-  if (button) { selected = button.dataset.case; draw(); document.querySelector(`[data-case="${CSS.escape(selected)}"]`).focus(); }
+  if (button) { selected = button.dataset.case; scope.value = selected; draw(); document.querySelector(`[data-case="${CSS.escape(selected)}"]`).focus(); }
 });
+scope.addEventListener('change',()=>{ draw(); });
 document.querySelector('#history').addEventListener('click',event=>{
   const button = event.target.closest('[data-run]');
   if (button) perform(async()=>{
@@ -98,9 +132,18 @@ document.querySelector('#history').addEventListener('click',event=>{
 detail.addEventListener('submit',event=>{
   event.preventDefault();
   perform(async()=>{
-    const payload={status:event.submitter.value,revision:batch.revision,note:detail.elements.note.value};
-    const result=await request(`/api/runs/${batch.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-    show(result,true); announce(result.status==='APPROVED'?'批次已签发':'批次已暂缓'); await refresh();
+    const note = detail.elements.note.value;
+    const decision = event.submitter.value;
+    let result, label;
+    if (scope.value) {
+      const revision = decisionOf(scope.value)?.revision ?? 0;
+      result = await request(`/api/runs/${batch.id}/cases/${encodeURIComponent(scope.value)}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:decision,revision,note})});
+      label = `批组 ${scope.value}`;
+    } else {
+      result = await request(`/api/runs/${batch.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:decision,revision:batch.revision,note})});
+      label = '批次';
+    }
+    show(result,true); announce(decision==='APPROVED'?`${label}已签发`:`${label}已暂缓`); await refresh();
   });
 });
 preview(stage);

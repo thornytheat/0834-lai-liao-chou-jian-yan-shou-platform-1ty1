@@ -11,6 +11,6 @@ def partition(candidates):
         if any(row != first for _, row in records):
             rejected.extend({'line': line, 'record': key, 'case': row['case'], 'reason': 'DUPLICATE_CONFLICT'} for line,row in records)
             continue
-        accepted.append(first)
+        accepted.append((records[0][0], first))
         rejected.extend({'line': line, 'record': key, 'case': row['case'], 'reason': 'DUPLICATE_REPLAY'} for line,row in records[1:])
     return accepted, rejected

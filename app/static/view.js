@@ -31,7 +31,7 @@ const valueLabels = {RPD:'相对偏差', ABSOLUTE:'绝对差', BOTH_ND:'双方�
   MISSING_REQUIRED:'缺少必填字段', AUTHORITY_CONFLICT:'权威编号冲突', CANNOT_LINK:'禁止合并',
   UPSTREAM_UNSCHEDULED:'上游未排程', NO_FEASIBLE_SLOT:'无可用时隙', LEGAL_HOLD:'合法保全',
   RECLAIM:'可回收', LIVE_SNAPSHOT:'活动快照', TRANSPORT:'运输中', DELIVERED:'已签收', CANCELLED:'已取消'};
-const headers = ['业务分组', '输入行', '计算值', '参考值', '判定'];
+const headers = ['业务分组', '输入行', '计算值', '参考值', '判定', '复核'];
 
 export function badge(status) {
   return element('span', labels[status] || status, {class:'badge', 'data-result':status, title: status});
@@ -71,7 +71,7 @@ function detailValue(value) {
   return list.children.length ? list : document.createTextNode('—');
 }
 
-export function snapshot(report, selected, stage) {
+export function snapshot(report, selected, stage, decisions) {
   const stats = report.intake;
   document.querySelector('[data-metric="input"]').textContent = stats.input;
   document.querySelector('[data-metric="accepted"]').textContent = stats.accepted;
@@ -96,14 +96,31 @@ export function snapshot(report, selected, stage) {
       tr.insertCell().append(button);
       [row.records.length, row.measure ? `${row.measure.value} ${row.measure.unit}` : '—', row.measure ? `${row.measure.expected} ${row.measure.unit}` : '—'].forEach(value=>tr.insertCell().textContent=value);
       tr.insertCell().append(badge(row.status));
+      const decision = decisions?.find(item=>item.case===row.case);
+      tr.insertCell().append(decision ? badge(decision.status) : element('span','—',{class:'badge',title:'未复核'}));
     }
   }
   table.createTHead().append(head);
   const picked = report.cases?.find(row=>row.case===selected);
   document.querySelector('#detail-title').textContent = picked ? `分组 ${picked.case}` : '采信摘要';
-  const shown = picked ? picked.measure?.evidence ?? picked.prep?.details ?? {原因:picked.status} : stats.reasons;
+  let shown;
+  if (picked) {
+    const extra = {};
+    if (picked.lines) extra['源行'] = Object.entries(picked.lines).map(([key,line])=>`${key}→行${line}`);
+    const holds = report.balance?.release?.cases?.[picked.case]?.holds;
+    if (holds?.length) extra['隔离行'] = holds.map(row=>`行${row.line} · ${row.record} · ${row.reason}`);
+    const decision = decisions?.find(item=>item.case===picked.case);
+    if (decision) extra['复核'] = `${decision.status} · ${decision.note}`;
+    shown = {...extra, ...(picked.measure?.evidence ?? picked.prep?.details ?? {原因:picked.status})};
+  } else {
+    shown = stats.reasons;
+  }
   document.querySelector('#detail').replaceChildren(detailValue(shown));
-  document.querySelector('#counts').textContent = report.balance ? `行数 ${report.balance.accounted}/${report.balance.input} · ${report.balance.ready} 组通过` : `采信 ${stats.accepted} 行 · 隔离 ${stats.rejected} 行`;
+  const approved = decisions?.filter(item=>item.status==='APPROVED').length ?? 0;
+  const blocked = report.balance?.release?.blocked;
+  document.querySelector('#counts').textContent = report.balance
+    ? `行数 ${report.balance.accounted}/${report.balance.input} · ${report.balance.ready} 组通过 · ${approved} 组已签发${blocked ? ' · 整单待查' : ''}`
+    : `采信 ${stats.accepted} 行 · 隔离 ${stats.rejected} 行`;
 }
 
 export function history(items, active) {

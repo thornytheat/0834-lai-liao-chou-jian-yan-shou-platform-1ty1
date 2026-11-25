@@ -28,6 +28,11 @@ def clean():
 
 
 @pytest.fixture
+def partial():
+    return (ROOT/'sample_data'/'partial.csv').read_bytes()
+
+
+@pytest.fixture
 def client(tmp_path):
     return create_app(tmp_path/'runs.db').test_client()
 

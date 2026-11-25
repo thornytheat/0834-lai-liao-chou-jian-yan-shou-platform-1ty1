@@ -8,7 +8,7 @@
 {% endmacro %}
 {% macro intake() %}
 <form class="source" id="source" aria-label="批次输入">
-  <label>输入样例 <select id="profile"><option value="dirty">带异常样例</option><option value="clean">可签发样例</option></select></label>
+  <label>输入样例 <select id="profile"><option value="dirty">带异常样例</option><option value="clean">可签发样例</option><option value="partial">部分放行样例</option></select></label>
   <label for="file" class="file">上传 CSV</label><input id="file" type="file" accept=".csv,text/csv"><span id="file-name" aria-live="polite"></span>
   <button type="submit" class="action">执行批次</button>
 </form>
@@ -35,7 +35,9 @@
 {% macro archive() %}
 <aside class="panel archive" id="review-area"><h2>批次复核</h2><ul id="history"></ul>
   <form id="review" hidden>
-    <p id="run-status"></p><label for="note">复核意见</label>
+    <p id="run-status"></p><label for="scope">复核范围</label>
+    <select id="scope" name="scope"></select>
+    <label for="note">复核意见</label>
     <textarea id="note" name="note" minlength="3" maxlength="200" required></textarea>
     <div class="review-actions"><button name="decision" value="HELD">暂缓</button><button class="action" name="decision" value="APPROVED">签发</button></div>
     <a id="evidence">下载复核证据</a>

@@ -4,7 +4,7 @@ from app.business import DomainIssue
 from app.evidence.render import artifact
 from app.inputs import read_input
 from app.modules.pipeline import run
-from app.review.service import execute, review
+from app.review.service import execute, review, review_case
 
 api = Blueprint('api',__name__,url_prefix='/api')
 STAGES = {'intake':1,'prepare':2,'calculate':3,'policy':4,'balance':5}
@@ -31,6 +31,12 @@ def batch(run_id):
     if request.method == 'GET':
         return jsonify(store.load(run_id))
     return jsonify(review(store,run_id,request.get_json(silent=True)))
+
+
+@api.patch('/runs/<run_id>/cases/<case>')
+def case_review(run_id, case):
+    store = current_app.extensions['runs']
+    return jsonify(review_case(store,run_id,case,request.get_json(silent=True)))
 
 
 @api.get('/runs/<run_id>/evidence')

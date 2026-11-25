@@ -35,4 +35,27 @@ def test_download_attachment(client):
     run=client.post('/api/runs',data={'sample':'clean'}).json
     response=client.get('/api/runs/'+run['id']+'/evidence')
     assert response.status_code==200 and 'attachment' in response.headers['Content-Disposition']
-    assert response.json['schema']=='review-evidence/1'
+    assert response.json['schema']=='review-evidence/2'
+
+
+from app.review.service import review_case
+
+
+def test_export_lists_case_decisions(store, partial):
+    run=execute(store,partial)
+    review_case(store,run['id'],'0001',dict(revision=0,status='APPROVED',note='0001 组核清放行'))
+    revised=review_case(store,run['id'],'0003',dict(revision=0,status='HELD',note='0003 组计划待整改'))
+    output=json.loads(artifact(revised))
+    decisions={d['case']:d for d in output['decisions']}
+    assert decisions['0001']['status']=='APPROVED' and decisions['0001']['note']=='0001 组核清放行'
+    assert decisions['0003']['status']=='HELD' and decisions['0003']['note']=='0003 组计划待整改'
+
+
+def test_held_case_traces_back_to_source_lines(store, partial):
+    run=execute(store,partial)
+    review_case(store,run['id'],'0004',dict(revision=0,status='HELD',note='串组冲突待查'))
+    output=json.loads(artifact(store.load(run['id'])))
+    case=next(c for c in output['cases'] if c['case']=='0004')
+    assert case['lines']['000401']==14
+    holds=output['balance']['release']['cases']['0004']['holds']
+    assert [row['line'] for row in holds]==[18] and holds[0]['record']=='000901'

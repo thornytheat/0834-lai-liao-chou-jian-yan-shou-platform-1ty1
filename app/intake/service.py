@@ -31,4 +31,4 @@ def inspect(data):
     rejects = sorted(rejected + conflicts, key=lambda row: row['line'])
     return dict(input=counted, accepted=len(accepted), repeated=repeated, blank=blanks,
                 rejected=len(rejects), reasons=dict(Counter(r['reason'] for r in rejects)),
-                isolation=rejects, rows=accepted)
+                isolation=rejects, rows=[dict(row, line=line) for line, row in accepted])

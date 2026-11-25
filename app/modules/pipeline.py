@@ -8,7 +8,8 @@ from app.modules.reconcile import balance
 
 
 def evaluate(rows, stage):
-    case = {'case':rows[0]['case'],'records':[r['record'] for r in rows], 'status':'READY'}
+    case = {'case':rows[0]['case'],'records':[r['record'] for r in rows],
+            'lines':{r['record']:r['line'] for r in rows}, 'status':'READY'}
     try:
         case['prep'], payload = prepare(rows)
         if stage >= 3:
